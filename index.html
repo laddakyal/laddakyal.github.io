@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <title>Pattani Base Map Demo - Mapbox</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Sarabun', sans-serif; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* กล่องเมนูสำหรับเปลี่ยนรูปแบบแผนที่ */
+        #menu {
+            position: absolute;
+            background: #fff;
+            padding: 15px;
+            margin: 20px;
+            font-family: 'Sarabun', sans-serif;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        
+        #menu h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .radio-container {
+            display: block;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        /* ตกแต่ง Popup */
+        .mapboxgl-popup-content {
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Sarabun', sans-serif;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .mapboxgl-popup-content h4 { margin: 0 0 5px 0; color: #0056b3; }
+        .mapboxgl-popup-content p { margin: 0; font-size: 14px; color: #555; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="menu">
+    <h3>รูปแบบแผนที่ฐาน (Base Map)</h3>
+    <label class="radio-container">
+        <input id="streets-v12" type="radio" name="rtoggle" value="streets" checked="checked">
+        แผนที่เส้นถนน (Road)
+    </label>
+    <label class="radio-container">
+        <input id="dark-v11" type="radio" name="rtoggle" value="dark">
+        แผนที่รูปแบบมืด (Dark)
+    </label>
+    <label class="radio-container">
+        <input id="satellite-streets-v12" type="radio" name="rtoggle" value="satellite">
+        แผนที่ดาวเทียม (Satellite)
+    </label>
+</div>
+
+<div id="map"></div>
+
+<script>
+    // 1. กำหนด Mapbox Token ตามที่ได้รับมา
+    mapboxgl.accessToken = 'pk.eyJ1IjoiamVranVlbmcxIiwiYSI6ImNtcWFxeWplcDA5ajcycHIxcHVsZm50eXUifQ.T3RV9F2l8i4YIZLk1Wa52g';
+
+    // 2. สร้างแผนที่และกำหนดจุดกึ่งกลางที่ อ.เมือง จ.ปัตตานี
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12', // ค่าเริ่มต้นเป็น Road
+        center: [101.2721, 6.8673], // พิกัดคร่าวๆ ของตัวเมืองปัตตานี
+        zoom: 13,
+        pitch: 45, // ปรับมุมเงยเพื่อโชว์ 3D
+        bearing: -17.6 // ปรับมุมหมุน
+    });
+
+    // 3. เพิ่ม Controls พื้นฐาน (Function เสริม)
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right'); // ปุ่ม Zoom In/Out และหมุนเข็มทิศ
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right'); // ปุ่มขยายเต็มจอ
+    map.addControl(new mapboxgl.GeolocateControl({ // ปุ่มหาพิกัดผู้ใช้งาน
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true
+    }), 'top-right');
+    map.addControl(new mapboxgl.ScaleControl(), 'bottom-right'); // สเกลบอกระยะทาง
+
+    // 4. ข้อมูลพิกัดและขนาดพื้นที่ของ 3 ตำบล (ครอบคลุมพื้นที่ > 4.78 ตร.กม.)
+    const tambons = [
+        { name: "ตำบลสะบารัง", area: "พื้นที่ประมาณ 2.80 ตร.กม.", coordinates: [101.2713, 6.8672], color: "#FF5733" },
+        { name: "ตำบลอาเนาะรู", area: "พื้นที่ประมาณ 0.80 ตร.กม.", coordinates: [101.2775, 6.8735], color: "#33FF57" },
+        { name: "ตำบลจะบังติกอ", area: "พื้นที่ประมาณ 1.18 ตร.กม.", coordinates: [101.2605, 6.8581], color: "#3357FF" }
+    ];
+
+    // 5. ปักหมุด (Markers) และ Popup
+    tambons.forEach(tambon => {
+        // สร้าง Popup
+        const popup = new mapboxgl.Popup({ offset: 25 })
+            .setHTML(`<h4>${tambon.name}</h4><p>${tambon.area}</p>`);
+
+        // สร้าง Marker
+        new mapboxgl.Marker({ color: tambon.color })
+            .setLngLat(tambon.coordinates)
+            .setPopup(popup)
+            .addTo(map);
+    });
+
+    // 6. ฟังก์ชันวาดเส้นขอบเขต (Boundaries) และอาคาร 3 มิติ
+    function addCustomLayers() {
+        // --- 6.1 เพิ่ม Layer ขอบเขต (Polygon) ---
+        // หมายเหตุ: โค้ดส่วนนี้เป็นการจำลองโครงสร้างไฟล์ GeoJSON 
+        // สำหรับใช้งานจริง ทางทีม Dev/GIS ต้องนำไฟล์ .geojson ของเขตจังหวัด, อำเภอ, และตำบล มาใส่ใน data
+        
+        if (!map.getSource('pattani-boundary')) {
+            map.addSource('pattani-boundary', {
+                'type': 'geojson',
+                // ตัวอย่างโครงสร้าง จำลองพิกัดพื้นที่รอบๆ
+                'data': {
+                    "type": "FeatureCollection",
+                    "features": [{
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[101.25, 6.85], [101.29, 6.85], [101.29, 6.89], [101.25, 6.89], [101.25, 6.85]]]
+                        }
+                    }]
+                }
+            });
+
+            // เพิ่มเส้นขอบของพื้นที่
+            map.addLayer({
+                'id': 'pattani-boundary-line',
+                'type': 'line',
+                'source': 'pattani-boundary',
+                'layout': {},
+                'paint': {
+                    'line-color': '#ff0000',
+                    'line-width': 2,
+                    'line-dasharray': [2, 2]
+                }
+            });
+            
+            // เพิ่มสีพื้นหลังแบบโปร่งแสง
+            map.addLayer({
+                'id': 'pattani-boundary-fill',
+                'type': 'fill',
+                'source': 'pattani-boundary',
+                'layout': {},
+                'paint': {
+                    'fill-color': '#0080ff',
+                    'fill-opacity': 0.1
+                }
+            });
+        }
+
+        // --- 6.2 เพิ่ม Layer อาคาร 3 มิติ (Function เสริมเพื่อการนำเสนอ) ---
+        const layers = map.getStyle().layers;
+        const labelLayerId = layers.find(
+            (layer) => layer.type === 'symbol' && layer.layout['text-field']
+        )?.id;
+
+        if (!map.getLayer('3d-buildings')) {
+            map.addLayer(
+                {
+                    'id': '3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'height']
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'min_height']
+                        ],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                },
+                labelLayerId // ให้อาคารอยู่ใต้ตัวหนังสือ
+            );
+        }
+    }
+
+    // โหลด Layer เมื่อแผนที่เปิดขึ้นมาครั้งแรก
+    map.on('load', () => {
+        addCustomLayers();
+    });
+
+    // 7. ระบบสลับ Base Map (Road, Dark, Satellite)
+    const layerList = document.getElementById('menu');
+    const inputs = layerList.getElementsByTagName('input');
+
+    for (const input of inputs) {
+        input.onclick = (e) => {
+            const layerId = e.target.id;
+            
+            // สำหรับดาวเทียม ให้ใช้ satellite-streets เพื่อให้เห็นชื่อถนนและสถานที่ด้วย
+            if (layerId === 'satellite-streets-v12') {
+                map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+            } else {
+                map.setStyle('mapbox://styles/mapbox/' + layerId);
+            }
+        };
+    }
+
+    // สิ่งสำคัญ: เมื่อสลับ Base Map ตัว Style จะถูกโหลดใหม่ ทำให้ Layer ที่สร้างเอง (ขอบเขต) หายไป
+    // จึงต้องดักจับ Event 'style.load' เพื่อวาดเส้นขอบเขตและ 3D กลับเข้าไปใหม่ทุกครั้ง
+    map.on('style.load', () => {
+        addCustomLayers();
+    });
+
+</script>
+</body>
+</html>
