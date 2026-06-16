@@ -21,10 +21,12 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             z-index: 1;
+            width: 220px;
         }
         
-        #menu h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; color: #333; }
-        .radio-container { display: block; margin-bottom: 8px; cursor: pointer; }
+        #menu h3 { margin-top: 0; margin-bottom: 10px; font-size: 15px; color: #333; }
+        .radio-container { display: block; margin-bottom: 8px; cursor: pointer; font-size: 14px; }
+        .divider { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
 
         .mapboxgl-popup-content {
             border-radius: 8px;
@@ -53,29 +55,40 @@
         <input id="satellite-streets-v12" type="radio" name="rtoggle" value="satellite">
         แผนที่ดาวเทียม (Satellite)
     </label>
+
+    <hr class="divider">
+
+    <h3>มุมมองแผนที่ (Perspective)</h3>
+    <label class="radio-container">
+        <input id="view-2d" type="radio" name="viewToggle" value="2d">
+        มุมมอง 2 มิติ (2D)
+    </label>
+    <label class="radio-container">
+        <input id="view-3d" type="radio" name="viewToggle" value="3d" checked="checked">
+        มุมมอง 3 มิติ (3D)
+    </label>
 </div>
 
 <div id="map"></div>
 
 <script>
-    // การทำงานภายใน IIFE (Immediately Invoked Function Expression) 
-    // เพื่อป้องกันไม่ให้คนพิมพ์เช็ค mapboxgl.accessToken ผ่าน Console ได้ง่ายๆ
     (function initMap() {
-        // เทคนิค Obfuscation: แยก Token ออกเป็นส่วนๆ สลับลำดับ แล้วนำมาประกอบกันตอน Runtime
-        // ทำให้การใช้คำสั่ง Search (Ctrl+F) หาคำว่า "pk.eyJ" จะไม่เจอใน Source Code โดยตรง
         const _t = [
-            "cHIxcHVsZm50eXUifQ.T3RV9F2l8i4YIZLk1Wa52g", // ส่วนที่ 3
-            "1IjoiamVranVlbmcxIiwiYSI6ImNtcWFxeWplcDA5ajcy", // ส่วนที่ 2
-            "pk.eyJ" // ส่วนที่ 1
+            "cHIxcHVsZm50eXUifQ.T3RV9F2l8i4YIZLk1Wa52g", 
+            "1IjoiamVranVlbmcxIiwiYSI6ImNtcWFxeWplcDA5ajcy", 
+            "pk.eyJ" 
         ];
         mapboxgl.accessToken = _t[2] + _t[1] + _t[0];
+
+        // ตัวแปรเก็บสถานะมุมมองปัจจุบัน
+        let currentView = '3d'; 
 
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v12',
             center: [101.2721, 6.8673],
             zoom: 13,
-            pitch: 45,
+            pitch: 45, // เริ่มต้นด้วย 3D
             bearing: -17.6
         });
 
@@ -157,6 +170,10 @@
                         'filter': ['==', 'extrude', 'true'],
                         'type': 'fill-extrusion',
                         'minzoom': 15,
+                        'layout': {
+                            // ผูก Visibility กับสถานะปัจจุบัน (2D มองไม่เห็น, 3D มองเห็น)
+                            'visibility': currentView === '3d' ? 'visible' : 'none'
+                        },
                         'paint': {
                             'fill-extrusion-color': '#aaa',
                             'fill-extrusion-height': [
@@ -179,10 +196,9 @@
 
         map.on('load', () => { addCustomLayers(); });
 
-        const layerList = document.getElementById('menu');
-        const inputs = layerList.getElementsByTagName('input');
-
-        for (const input of inputs) {
+        // --- ระบบสลับรูปแบบ Base Map ---
+        const mapStyleInputs = document.getElementsByName('rtoggle');
+        for (const input of mapStyleInputs) {
             input.onclick = (e) => {
                 const layerId = e.target.id;
                 if (layerId === 'satellite-streets-v12') {
@@ -193,9 +209,31 @@
             };
         }
 
+        // --- ระบบสลับมุมมอง 2D / 3D ---
+        const viewToggleInputs = document.getElementsByName('viewToggle');
+        for (const input of viewToggleInputs) {
+            input.onclick = (e) => {
+                currentView = e.target.value;
+                if (currentView === '3d') {
+                    // ปรับเป็น 3D: เงยกล้อง และหมุนทิศทาง พร้อมเปิด Layer อาคาร
+                    map.easeTo({ pitch: 45, bearing: -17.6, duration: 1000 });
+                    if (map.getLayer('3d-buildings')) {
+                        map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+                    }
+                } else {
+                    // ปรับเป็น 2D: ตั้งกล้องตรง และหันหน้าทิศเหนือ พร้อมปิด Layer อาคาร
+                    map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
+                    if (map.getLayer('3d-buildings')) {
+                        map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+                    }
+                }
+            };
+        }
+
+        // โหลด Custom Layer กลับมาทุกครั้งที่เปลี่ยน Base Map (เช่น Road ไป Dark)
         map.on('style.load', () => { addCustomLayers(); });
 
-    })(); // ปิด IIFE
+    })(); 
 </script>
 </body>
 </html>
