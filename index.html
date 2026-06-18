@@ -80,7 +80,6 @@
         ];
         mapboxgl.accessToken = _t[2] + _t[1] + _t[0];
 
-        // ตัวแปรเก็บสถานะมุมมองปัจจุบัน
         let currentView = '3d'; 
 
         const map = new mapboxgl.Map({
@@ -88,7 +87,7 @@
             style: 'mapbox://styles/mapbox/streets-v12',
             center: [101.2721, 6.8673],
             zoom: 13,
-            pitch: 45, // เริ่มต้นด้วย 3D
+            pitch: 45, 
             bearing: -17.6
         });
 
@@ -126,7 +125,23 @@
                             "type": "Feature",
                             "geometry": {
                                 "type": "Polygon",
-                                "coordinates": [[[101.25, 6.85], [101.29, 6.85], [101.29, 6.89], [101.25, 6.89], [101.25, 6.85]]]
+                                // ปรับพิกัดเป็นหลายจุดตัด (Multi-vertices) เพื่อให้เกิดเส้นขอบเขตที่โค้งเว้าและสมจริงขึ้น
+                                "coordinates": [[
+                                    [101.2480, 6.8620],
+                                    [101.2505, 6.8715],
+                                    [101.2550, 6.8790],
+                                    [101.2630, 6.8845],
+                                    [101.2740, 6.8860],
+                                    [101.2825, 6.8820],
+                                    [101.2890, 6.8740],
+                                    [101.2920, 6.8650],
+                                    [101.2885, 6.8530],
+                                    [101.2795, 6.8470],
+                                    [101.2660, 6.8455],
+                                    [101.2545, 6.8490],
+                                    [101.2490, 6.8550],
+                                    [101.2480, 6.8620] // จุดสุดท้ายต้องวนกลับมาซ้ำจุดแรกเพื่อปิดรูป Polygon
+                                ]]
                             }
                         }]
                     }
@@ -138,9 +153,9 @@
                     'source': 'pattani-boundary',
                     'layout': {},
                     'paint': {
-                        'line-color': '#ff0000',
-                        'line-width': 2,
-                        'line-dasharray': [2, 2]
+                        'line-color': '#ff3333',
+                        'line-width': 2.5,
+                        'line-dasharray': [3, 2] // ปรับให้เส้นประดูเนียนตาขึ้น
                     }
                 });
                 
@@ -150,8 +165,8 @@
                     'source': 'pattani-boundary',
                     'layout': {},
                     'paint': {
-                        'fill-color': '#0080ff',
-                        'fill-opacity': 0.1
+                        'fill-color': '#007cbf',
+                        'fill-opacity': 0.12 // เพิ่มความเข้มขึ้นเล็กน้อยเพื่อให้เห็นพื้นที่ชัดเจน
                     }
                 });
             }
@@ -171,7 +186,6 @@
                         'type': 'fill-extrusion',
                         'minzoom': 15,
                         'layout': {
-                            // ผูก Visibility กับสถานะปัจจุบัน (2D มองไม่เห็น, 3D มองเห็น)
                             'visibility': currentView === '3d' ? 'visible' : 'none'
                         },
                         'paint': {
@@ -196,7 +210,6 @@
 
         map.on('load', () => { addCustomLayers(); });
 
-        // --- ระบบสลับรูปแบบ Base Map ---
         const mapStyleInputs = document.getElementsByName('rtoggle');
         for (const input of mapStyleInputs) {
             input.onclick = (e) => {
@@ -209,19 +222,16 @@
             };
         }
 
-        // --- ระบบสลับมุมมอง 2D / 3D ---
         const viewToggleInputs = document.getElementsByName('viewToggle');
         for (const input of viewToggleInputs) {
             input.onclick = (e) => {
                 currentView = e.target.value;
                 if (currentView === '3d') {
-                    // ปรับเป็น 3D: เงยกล้อง และหมุนทิศทาง พร้อมเปิด Layer อาคาร
                     map.easeTo({ pitch: 45, bearing: -17.6, duration: 1000 });
                     if (map.getLayer('3d-buildings')) {
                         map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
                     }
                 } else {
-                    // ปรับเป็น 2D: ตั้งกล้องตรง และหันหน้าทิศเหนือ พร้อมปิด Layer อาคาร
                     map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
                     if (map.getLayer('3d-buildings')) {
                         map.setLayoutProperty('3d-buildings', 'visibility', 'none');
@@ -230,7 +240,6 @@
             };
         }
 
-        // โหลด Custom Layer กลับมาทุกครั้งที่เปลี่ยน Base Map (เช่น Road ไป Dark)
         map.on('style.load', () => { addCustomLayers(); });
 
     })(); 
